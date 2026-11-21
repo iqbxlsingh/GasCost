@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gas Cost Calculator</title>
+<style>
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --regular:#3ddc84; --ultra:#4fc3f7; --diesel:#ffd400;
+}
+html{height:100%;background:#000}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:#000;color:#fff;font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif;line-height:1.45;min-height:100%}
+main{max-width:620px;margin:0 auto;padding:24px 16px 40px}
+h1{font-size:1.6rem;margin:0 0 4px;letter-spacing:-.01em;color:#fff;font-weight:600}
+.sub{color:#fff;margin:0 0 20px;font-size:.95rem}
+.rates,.grade{background:rgba(255,255,255,.08);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.22);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.5)}
+.rates{display:flex;gap:12px;flex-wrap:wrap;padding:12px 14px;margin-bottom:16px}
+.rates label{display:flex;flex-direction:column;font-size:.85rem;color:#fff;gap:4px;flex:1;min-width:130px}
+input{font:inherit;color:#fff;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.35);border-radius:6px;padding:8px;width:100%}
+.grade{border-left:6px solid var(--c);padding:14px 16px;margin-bottom:12px;display:grid;grid-template-columns:1fr auto;gap:6px 16px;align-items:center}
+.grade h2{margin:0;font-size:1.1rem;color:var(--c)}
+.grade input{font-size:1.25rem;width:130px;text-align:right}
+input:focus,button:focus-visible{outline:3px solid var(--c,#4fc3f7);outline-offset:1px}
+.final{grid-column:1/-1;display:flex;justify-content:space-between;align-items:baseline;border-top:1px dashed rgba(255,255,255,.35);padding-top:8px}
+.final span{color:#fff;font-size:.9rem}
+.final strong{font-size:2rem;font-variant-numeric:tabular-nums;letter-spacing:-.02em;color:#fff}
+.actions{display:flex;gap:10px;margin-top:8px}
+button{font:inherit;cursor:pointer;border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.08);color:#fff;border-radius:8px;padding:9px 14px}
+button.primary{background:#fff;color:#000;border-color:#fff}
+input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+input[type=number]{-moz-appearance:textfield;appearance:textfield}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px}
+.top .sub{margin:0}
+.logo{flex:none;width:58px;height:58px;border-radius:16px;background:rgba(255,255,255,.08);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.3);box-shadow:0 8px 28px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center}
+</style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <div>
+      <h1>Gas Cost Calculator</h1>
+      <p class="sub">Petro Canada</p>
+    </div>
+    <div class="logo" role="img" aria-label="Gas bar">
+      <svg viewBox="0 0 64 64" width="34" height="34" aria-hidden="true" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><rect x="12" y="8" width="26" height="46" rx="4"/><rect x="17" y="14" width="16" height="11" rx="2" fill="rgba(255,212,0,.35)" stroke="#ffd400"/><path d="M18 36h14M18 43h8"/><path d="M8 58h34"/><path d="M38 22h6a4 4 0 0 1 4 4v16a4 4 0 0 0 8 0V27l-6-7"/></svg>
+    </div>
+  </div>
+
+  <div class="rates">
+    <label>Add-on per litre<input id="addon" type="number" step="0.01" value="0.09" inputmode="decimal"></label>
+    <label>Tax %<input id="tax" type="number" step="0.01" value="13" inputmode="decimal"></label>
+  </div>
+
+  <section class="grade" style="--c:var(--regular)">
+    <h2>Regular</h2>
+    <input id="regular" type="number" step="0.001" placeholder="0.000" inputmode="decimal" aria-label="Regular base price">
+    <div class="final"><span>Actual cost</span><strong id="regular-out">—</strong></div>
+  </section>
+
+  <section class="grade" style="--c:var(--ultra)">
+    <h2>Ultra</h2>
+    <input id="ultra" type="number" step="0.001" placeholder="0.000" inputmode="decimal" aria-label="Ultra base price">
+    <div class="final"><span>Actual cost</span><strong id="ultra-out">—</strong></div>
+  </section>
+
+  <section class="grade" style="--c:var(--diesel)">
+    <h2>Diesel</h2>
+    <input id="diesel" type="number" step="0.001" placeholder="0.000" inputmode="decimal" aria-label="Diesel base price">
+    <div class="final"><span>Actual cost</span><strong id="diesel-out">—</strong></div>
+  </section>
+
+  <div class="actions">
+    <button class="primary" id="copy">Copy results</button>
+    <button id="clear">Clear prices</button>
+  </div>
+</main>
+
+<script>
+(function(){
+  var grades=["regular","ultra","diesel"];
+  var $=function(id){return document.getElementById(id)};
+  var results={};
+  function fmt(n,d){return n.toFixed(d)}
+  function trunc1(n){return Math.floor(n*10+1e-7)/10}
+  function calc(){
+    var add=parseFloat($("addon").value)||0;
+    var tax=parseFloat($("tax").value)||0;
+    grades.forEach(function(g){
+      var v=parseFloat($(g).value);
+      if(isNaN(v)){$(g+"-out").textContent="—";results[g]=null;return;}
+      var sub=v+add;
+      var total=sub+sub*tax/100;
+      results[g]=trunc1(total*100);
+      $(g+"-out").textContent=fmt(results[g],1);
+    });
+  }
+  ["addon","tax"].concat(grades).forEach(function(id){["input","keyup","change","blur","paste"].forEach(function(ev){$(id).addEventListener(ev,function(){setTimeout(calc,0)})})});
+  setInterval(calc,500);
+  $("clear").addEventListener("click",function(){grades.forEach(function(g){$(g).value=""});calc();$("regular").focus()});
+  $("copy").addEventListener("click",function(){
+    var lines=grades.filter(function(g){return results[g]!=null}).map(function(g){
+      return g.charAt(0).toUpperCase()+g.slice(1)+": "+fmt(results[g],1);
+    });
+    var text=lines.join("\n");
+    var btn=$("copy");
+    function done(){btn.textContent="Copied";setTimeout(function(){btn.textContent="Copy results"},1500)}
+    if(navigator.clipboard&&text){navigator.clipboard.writeText(text).then(done,function(){})}
+  });
+  calc();
+})();
+</script>
+</body>
+</html>
